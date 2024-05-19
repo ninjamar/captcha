@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "captcha" generated at 2024-05-19T10:57:54.784Z.

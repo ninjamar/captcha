@@ -4,6 +4,22 @@ main = "src/index.js"
 compatibility_date = "2024-05-12"
 compatibility_flags = ["nodejs_compat"]
 
+kv_namespaces = [
+    { binding = "KV", id = "91febc8f88434869bcfb852d5e7a4da6"}
+]
+
+[vars] # production
+ALLOWED_URLS_REGEX = '^(?:.*?\\.)?ninjamar\\.(?:dev|github\\.io|pages\\.dev)(?::\\\\d*)$' # subdomain.ninjamar.tld:port
+
+[env.dev]
+kv_namespaces = [
+    { binding = "KV", id = "91febc8f88434869bcfb852d5e7a4da6"}
+]
+[env.dev.vars]
+ALLOWED_URLS_REGEX = '^localhost(?::\\d*)?$' # escape \d
+
+
+
 # Automatically place your workloads in an optimal location to minimize latency.
 # If you are running back-end logic in a Worker, running it closer to your back-end infrastructure
 # rather than the end user may result in better performance.
