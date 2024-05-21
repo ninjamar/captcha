@@ -8,7 +8,8 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
-import { Router } from '@tsndr/cloudflare-worker-router'
+
+import { Router } from "@tsndr/cloudflare-worker-router";
 import { ImageResponse } from "workers-og";
 import { randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
@@ -17,6 +18,7 @@ import { getRandomInt } from "./utils.js";
 
 const router = new Router();
 
+// Generate random effects for character
 function makeEffect(char){
 	let randItem = (arr) => arr[getRandomInt(0, arr.length - 1)];
 	let colors = ["red", "blue", "green", "black"];
@@ -24,8 +26,10 @@ function makeEffect(char){
 	return `<span style="color: ${randItem(colors)}; text-decoration: ${randItem(decoration)}; transform: rotate(${getRandomInt(-20, 20)}deg);">${char}</span>`
 }
 
-router.cors();
 
+// TODO: Find better way to block origins
+router.cors();
+// Block origins that don't match regex (wrangler.toml)
 router.use(({env, req}) => {
 	if (req.method == "POST"){
 		let origin = req.headers.get("origin");
@@ -38,16 +42,26 @@ router.use(({env, req}) => {
 	}
 });
 
+// Landing page
 router.get("/", ({req}) => {
 	return new Response("Hello, World!");
 });
 
+
+/* 
+	{
+		captchaURL: "data:image/png...",
+		id: "uuid",
+		width: width,
+		height: height
+	}
+*/
 router.post("/v1/create_captcha", async ({env, req}) => {
 	let captcha = Array(8).fill(0).map(x => CAPTCHA_CHARS[Math.floor(Math.random() * CAPTCHA_CHARS.length)]).join("");
-	let id = randomUUID();
+	let token = randomUUID();
 
 	// id -> captcha
-	await env.KV.put(id, captcha, {expirationTtl: 300}); // Expire captchas in 5 mins
+	await env.KV.put(token, captcha, {expirationTtl: 300}); // Expire captchas in 5 mins
 	
 	let fmt = Array.from(captcha).map(x => makeEffect(x));
 	let image = new ImageResponse(
@@ -69,26 +83,32 @@ router.post("/v1/create_captcha", async ({env, req}) => {
 	let buf = await image.clone().arrayBuffer();
 	return Response.json({
 		captchaURL: "data:image/png;base64," + Buffer.from(buf).toString("base64"), 
-		id: id,
+		token: token,
 		width: CAPTCHA_WIDTH,
 		height: CAPTCHA_HEIGHT
 	});
 });
 
+/* 
+	{
+		success: true ? false
+	}
+*/
 router.post("/v1/verify_captcha", async ({env, req}) => {
 	let json = await req.json();
 	let response = json["response"];
-	let id = json["id"];
+	let token = json["token"];
 	
-	if (!response || !id){
+	if (!response || !token){
 		return new Response(null, {status: 400});
 	}
-	let storedCaptcha = await env.KV.get(id);
+	let storedCaptcha = await env.KV.get(token);
 	if (storedCaptcha == response){
 		return Response.json({"success": true});
 	}
 	return Response.json({"success": false});
 });
+
 
 export default {
 	async fetch(request, env, ctx) {
